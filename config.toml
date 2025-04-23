@@ -1,0 +1,12 @@
+[general]
+# The Canvas LMS Token identifying your user session.
+canvas_token = "16765~PnzNMauTnTJEDCh7DUFzmFULcPeQDayFcHtnXM9u2CKBWan38HDAGMBHVeVXAWQE"
+# The Canvas LMS course ID identifying your course.
+canvas_course_id = 306521
+# The naming scheme of your assignments as found on your course.
+# The script will attempt to find as many assignments that have this predicate.
+canvas_assignment_name_predicate = ""
+# The MUCS internal name for each assignment.
+# In general, you can expect this to be like "lab1, lab2, ... labx" 
+internal_mucs_name = ""
+ 

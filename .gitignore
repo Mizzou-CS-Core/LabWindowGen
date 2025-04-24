@@ -2300,3 +2300,5 @@
 .venv/lib/python3.11/site-packages/pytz-2025.2.dist-info/top_level.txt
 .venv/lib/python3.11/site-packages/pytz-2025.2.dist-info/WHEEL
 .venv/lib/python3.11/site-packages/pytz-2025.2.dist-info/zip-safe
+window.csv
+config.toml

@@ -7,7 +7,7 @@ from datetime import datetime
 from csv import DictWriter
 from tomlkit import document, table, comment, dumps
 
-from CanvasRequestLibrary.main import CanvasClient
+from canvas_lms_api import CanvasClient
 
 class Config:
     def __init__(self, token: str, course_id: int, assignment_name_scheme: str, generated_output_file_name: str, blacklist: list):

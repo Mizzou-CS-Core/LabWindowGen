@@ -10,7 +10,8 @@ from datetime import datetime
 from csv import DictWriter
 from tomlkit import document, table, comment, dumps
 
-from canvas_lms_api import CanvasClient, Assignment
+from canvas_lms_api import get_client, Assignment
+import mucs_database.store_objects as dao
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
@@ -21,41 +22,29 @@ class Config:
         self.token = token
         self.course_id= course_id
         self.assignment_name_scheme = assignment_name_scheme
-        self.client = CanvasClient(token=self.token, url_base="https://umsystem.instructure.com/api/v1/")
         self.blacklist = blacklist
-        self.mucs_course_code = mucs_course_code
 
 def get_assignment_internals(config: Config) -> []:
-    logger.info("gen_assignment_window$get_assignment_internals: Retrieving assignments from Canvas LMS")
+    logger.debug("$get_assignment_internals: Retrieving assignments from Canvas LMS")
     try:
-        assignments = config.client._assignments.get_assignments_from_course(course_id=config.course_id, per_page=100)
+        assignments = get_client()._assignments.get_assignments_from_course(course_id=config.course_id, per_page=100)
     except Exception as e:
-        logger.error(f"gen_assignment_window$get_assignment_internals: Failed to get assignments: {e}")
-    logger.info(f"gen_assignment_window$get_assignment_internals: Assignment count from Canvas LMS: {len(assignments)}")
+        logger.error(f"$get_assignment_internals: Failed to get assignments: {e}")
+    logger.debug(f"$get_assignment_internals: Assignment count from Canvas LMS: {len(assignments)}")
     assignments = [a for a in assignments if config.assignment_name_scheme in a.name and not any(phrase in a.name for phrase in config.blacklist)]
     for assignment in assignments:
         # remove stray characters
         # TODO: maybe provide a regex config option? 
         assignment.name = re.sub(r'[ ()]', '', assignment.name).lower()
-        logger.info(f"gen_assignment_window$get_assignment_internals: Internal assignment name {assignment.name} assigned")
-    return assignments
+        logger.debug(f"$get_assignment_internals: Internal assignment name {assignment.name} assigned")
+        dao.store_assignment(assignment=assignment)
 
-def prepare_output(config: Config, assignments: [], cursor: sqlite3.Cursor) -> None:
-    sql = "INSERT INTO assignments(canvas_id, mucs_course_code, name, open_at, due_at) VALUES (?, ?, ?, ?, ?)"
-    for assignment in assignments:
-        asn = (assignment.id, config.mucs_course_code, assignment.name, assignment.unlock_at, assignment.due_at)
-        logger.info(f"gen_assignment_window$prepare_output: Inserting {asn}")
-        try:
-            cursor.execute(sql, asn)
-        except sqlite3.Exception as e:
-            logger.error(f"gen_assignment_window$prepare_output: Failed to insert row {asn}: {e}")
-    cursor.commit()
-
+# Accepts values to prepare a "partial" configuration if necessary
 def prepare_toml(config_path = Path(""), canvas_token = "", canvas_course_id = 0, canvas_assignment_name_predicate = "", canvas_assignment_phrase_blacklist = [""], mucs_course_code = "") -> None:
     if canvas_token != "":
-        logger.info("Creating gen_lab_window_config.toml with pre-provided defaults")
+        logger.info("$prepare_toml: Creating gen_lab_window_config.toml with pre-provided defaults")
     else:
-        logger.info("Creating gen_lab_window_config.toml with empty defaults")
+        logger.info("$prepare_toml: Creating gen_lab_window_config.toml with empty defaults")
     doc = document()
     general = table()
     general.add("mucs_course_code", mucs_course_code)
@@ -74,7 +63,8 @@ def prepare_toml(config_path = Path(""), canvas_token = "", canvas_course_id = 0
 
     with open(config_path / "gen_lab_window_config.toml", 'w') as f:
         f.write(dumps(doc))
-    logger.info("Created toml config")
+    logger.info("$prepare_toml: Created toml config")
+
 def load_config() -> Config:
     with open("gen_lab_window_config.toml", 'r') as f:
         content = f.read()
@@ -93,12 +83,11 @@ def load_config() -> Config:
     )
 
 
-def initialize_window(cursor: sqlite3.Cursor, config_path = Path(""), canvas_token = 0, canvas_course_id = 0, canvas_assignment_name_predicate = "", canvas_assignment_phrase_blacklist = [""], mucs_course_code = ""):
+def prepare_assignment_window_and_config(config_path = Path(""), canvas_token = 0, canvas_course_id = 0, canvas_assignment_name_predicate = "", canvas_assignment_phrase_blacklist = [""], mucs_course_code = ""):
     prepare_toml(config_path = config_path, canvas_token = canvas_token, canvas_course_id = canvas_course_id, canvas_assignment_name_predicate = canvas_assignment_name_predicate, canvas_assignment_phrase_blacklist = canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code)
-    # logger.info(f"gen_assignment_window$initialize_window: Creating default TOML using config_path: {config_path}, canvas_token=REDACTED, canvas_course_id={canvas_course_id}, canvas_assignment_name_predicate={canvas_assignment_name_predicate}, canvas_assignment_phrase_blacklist={canvas_assignment_phrase_blacklist}, mucs_course_code={mucs_course_code}")
+    logger.info("Created default TOML configuration for gen_assignment_window")
     config = Config(token=canvas_token, course_id=canvas_course_id, assignment_name_scheme=canvas_assignment_name_predicate, blacklist=canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code)
-    assignments = get_assignment_internals(config=config)
-    logger.info(f"gen_assignment_window$initialize_window: Retrieved assignments: count of {len(assignments)}")
+    get_assignment_internals(config=config)
 
 def main():
     if not os.path.exists("config.toml"):

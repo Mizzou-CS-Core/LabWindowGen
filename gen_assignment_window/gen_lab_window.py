@@ -1,6 +1,5 @@
 import os 
 import re
-import pytz
 import tomlkit
 import sqlite3
 import logging

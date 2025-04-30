@@ -37,7 +37,7 @@ def get_assignment_internals(config: Config) -> []:
         logger.info(f"gen_assignment_window$get_assignment_internals: Internal assignment name {assignment.name} assigned")
     return assignments
 
-def prepare_output(config: Config, assignments: [], cursor: Cursor) -> None:
+def prepare_output(config: Config, assignments: [], cursor: sqlite3.Cursor) -> None:
     sql = "INSERT INTO assignments(canvas_id, mucs_course_code, name, open_at, due_at) VALUES (?, ?, ?, ?, ?)"
     for assignment in assignments:
         asn = (assignment.id, config.mucs_course_code, assignment.name, assignment.unlock_at, assignment.due_at)
@@ -86,7 +86,7 @@ def load_config() -> Config:
     )
 
 
-def initialize_window(cursor: Cursor, config_path = Path(""), canvas_token = 0, canvas_course_id = 0, canvas_assignment_name_predicate = "", canvas_assignment_phrase_blacklist = [""], mucs_course_code = ""):
+def initialize_window(cursor: sqlite3.Cursor, config_path = Path(""), canvas_token = 0, canvas_course_id = 0, canvas_assignment_name_predicate = "", canvas_assignment_phrase_blacklist = [""], mucs_course_code = ""):
     prepare_toml(config_path = config_path, canvas_token = canvas_token, canvas_course_id = canvas_course_id, canvas_assignment_name_predicate = canvas_assignment_name_predicate, canvas_assignment_phrase_blacklist = canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code)
     logger.info(f"gen_assignment_window$initialize_window: Creating default TOML using config_path: {config_path}, canvas_token=REDACTED, canvas_course_id={canvas_course_id}, canvas_assignment_name_predicate={canvas_assignment_name_predicate}, canvas_assignment_phrase_blacklist={canvas_assignment_phrase_blacklist}, mucs_course_code={mucs_course_code}")
     config = Config(token=canvas_token, course_id=canvas_course_id, assignment_name_scheme=canvas_assignment_name_predicate, blacklist=canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code)

@@ -50,7 +50,11 @@ def prepare_output(config: Config, assignments: [], cursor: sqlite3.Cursor) -> N
             logger.error(f"gen_assignment_window$prepare_output: Failed to insert row {asn}: {e}")
     cursor.commit()
 
-def prepare_toml(config_path = Path(""), canvas_token = 0, canvas_course_id = 0, canvas_assignment_name_predicate = "", canvas_assignment_phrase_blacklist = [""], mucs_course_code = "") -> None:
+def prepare_toml(config_path = Path(""), canvas_token = "", canvas_course_id = 0, canvas_assignment_name_predicate = "", canvas_assignment_phrase_blacklist = [""], mucs_course_code = "") -> None:
+    if canvas_token != "":
+        logger.info("Creating gen_lab_window_config.toml with pre-provided defaults")
+    else:
+        logger.info("Creating gen_lab_window_config.toml with empty defaults")
     doc = document()
     general = table()
     general.add("mucs_course_code", mucs_course_code)
@@ -69,7 +73,7 @@ def prepare_toml(config_path = Path(""), canvas_token = 0, canvas_course_id = 0,
 
     with open(config_path / "gen_lab_window_config.toml", 'w') as f:
         f.write(dumps(doc))
-    print("Created default toml config")
+    logger.info("Created toml config")
 def load_config() -> Config:
     with open("gen_lab_window_config.toml", 'r') as f:
         content = f.read()
@@ -90,7 +94,7 @@ def load_config() -> Config:
 
 def initialize_window(cursor: sqlite3.Cursor, config_path = Path(""), canvas_token = 0, canvas_course_id = 0, canvas_assignment_name_predicate = "", canvas_assignment_phrase_blacklist = [""], mucs_course_code = ""):
     prepare_toml(config_path = config_path, canvas_token = canvas_token, canvas_course_id = canvas_course_id, canvas_assignment_name_predicate = canvas_assignment_name_predicate, canvas_assignment_phrase_blacklist = canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code)
-    logger.info(f"gen_assignment_window$initialize_window: Creating default TOML using config_path: {config_path}, canvas_token=REDACTED, canvas_course_id={canvas_course_id}, canvas_assignment_name_predicate={canvas_assignment_name_predicate}, canvas_assignment_phrase_blacklist={canvas_assignment_phrase_blacklist}, mucs_course_code={mucs_course_code}")
+    # logger.info(f"gen_assignment_window$initialize_window: Creating default TOML using config_path: {config_path}, canvas_token=REDACTED, canvas_course_id={canvas_course_id}, canvas_assignment_name_predicate={canvas_assignment_name_predicate}, canvas_assignment_phrase_blacklist={canvas_assignment_phrase_blacklist}, mucs_course_code={mucs_course_code}")
     config = Config(token=canvas_token, course_id=canvas_course_id, assignment_name_scheme=canvas_assignment_name_predicate, blacklist=canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code)
     assignments = get_assignment_internals(config=config)
     logger.info(f"gen_assignment_window$initialize_window: Retrieved assignments: count of {len(assignments)}")

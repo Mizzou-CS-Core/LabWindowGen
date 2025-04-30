@@ -54,7 +54,7 @@ def prepare_toml(config_path = Path(""), canvas_token = 0, canvas_course_id = 0,
     doc = document()
     general = table()
     general.add("mucs_course_code", mucs_course_code)
-    doc['general']
+    doc['general'] = general
     canvas = table()
     canvas.add(comment("The Canvas LMS Token identifying your user session."))
     canvas.add("canvas_token", canvas_token)

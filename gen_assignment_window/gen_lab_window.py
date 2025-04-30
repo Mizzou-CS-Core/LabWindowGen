@@ -154,7 +154,7 @@ def prepare_assignment_window_and_config(config_path: Path = Path(""), canvas_to
     logger.info("Created default TOML configuration for gen_assignment_window")
     config = Config(token=canvas_token, course_id=canvas_course_id, assignment_name_scheme=canvas_assignment_name_predicate, blacklist=canvas_assignment_phrase_blacklist, mucs_instance_code=mucs_instance_code, sqlite3_path=sqlite3_path)
     for course_id in ids:
-        filter_out_assignments(course_id)
+        filter_out_assignments(course_id=course_id, blacklist=canvas_assignment_phrase_blacklist, assignment_name_scheme=canvas_assignment_name_predicate)
 
 def main():
     if not os.path.exists("gen_assignment_window.toml"):

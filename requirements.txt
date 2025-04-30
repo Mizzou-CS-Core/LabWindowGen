@@ -16,8 +16,6 @@ idna==3.10
     # via requests
 mucs-database @ git+https://github.com/Mizzou-CS-Core/MUCSDao.git
     # via -r requirements.in
-pytz==2025.2
-    # via -r requirements.in
 requests==2.32.3
     # via canvas-lms-api
 tomlkit==0.13.2

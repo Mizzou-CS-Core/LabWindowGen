@@ -17,7 +17,7 @@ logger.addHandler(logging.NullHandler())
 
 
 class Config:
-    def __init__(self, token: str, course_id: int, assignment_name_scheme: str, generated_output_file_name: str, blacklist: list, mucs_course_code):
+    def __init__(self, token: str, course_id: int, assignment_name_scheme: str, blacklist: list, mucs_course_code):
         self.token = token
         self.course_id= course_id
         self.assignment_name_scheme = assignment_name_scheme

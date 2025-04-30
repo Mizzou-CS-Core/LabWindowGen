@@ -3,6 +3,7 @@ import re
 import tomlkit
 import sqlite3
 import logging
+from colorlog import ColoredFormatter
 from pathlib import Path
 
 
@@ -11,23 +12,52 @@ from csv import DictWriter
 from tomlkit import document, table, comment, dumps
 
 from canvas_lms_api import get_client, Assignment
+from canvas_lms_api import init as initialize_canvas_client
+
 import mucs_database.store_objects as dao
+from mucs_database.init import initialize_database
+
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 
 
+
 class Config:
-    def __init__(self, token: str, course_id: int, assignment_name_scheme: str, blacklist: list, mucs_course_code):
+    def __init__(self, token: str, course_id: int, assignment_name_scheme: str, blacklist: list, mucs_instance_code: str, sqlite3_path: str):
         self.token = token
         self.course_id= course_id
         self.assignment_name_scheme = assignment_name_scheme
         self.blacklist = blacklist
+        self.mucs_instance_code = mucs_instance_code
+        self.sqlite3_path = Path(sqlite3_path) / f"{mucs_instance_code}.db"
 
-def filter_out_assignments(course_id: int):
+
+
+def setup_logging():
+    handler = logging.StreamHandler()
+    # this format string lets colorlog insert color around the whole line
+    fmt = "%(log_color)s%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    colors = {
+        'DEBUG':    'cyan',
+        'INFO':     'green',
+        'WARNING':  'yellow',
+        'ERROR':    'red',
+        'CRITICAL': 'bold_red',
+    }
+    handler.setFormatter(ColoredFormatter(fmt, log_colors=colors))
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    root.addHandler(handler)
+
+logger = logging.getLogger(__name__) 
+
+def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklist: list):
     """
     Retrieves the assignments from a course, filters their name based on the given predicate and blacklist, and stores it to the MUCS db. 
     :param course_id: The ID of the course to retrieve assignments from. 
+    :param assignment_name_scheme: the pattern to match in Canvas assignments
+    :param blacklist: phrases which should not appear in MUCSv2 assignments from Canvas
     """
     logger.debug("$get_assignment_internals: Retrieving assignments from Canvas LMS")
     try:
@@ -35,7 +65,7 @@ def filter_out_assignments(course_id: int):
     except Exception as e:
         logger.error(f"$get_assignment_internals: Failed to get assignments: {e}")
     logger.debug(f"$get_assignment_internals: Assignment count from Canvas LMS: {len(assignments)}")
-    assignments = [a for a in assignments if config.assignment_name_scheme in a.name and not any(phrase in a.name for phrase in config.blacklist)]
+    assignments = [a for a in assignments if assignment_name_scheme in a.name and not any(phrase in a.name for phrase in blacklist)]
     for assignment in assignments:
         # remove stray characters
         # TODO: maybe provide a regex config option? 
@@ -44,7 +74,7 @@ def filter_out_assignments(course_id: int):
         dao.store_assignment(assignment=assignment)
 
 # Accepts values to prepare a "partial" configuration if necessary
-def prepare_toml(config_path: Path = Path(""), canvas_token: str = "", canvas_course_id: int = 0, canvas_assignment_name_predicate: str = "", canvas_assignment_phrase_blacklist = [""], mucs_instance_code: str = "") -> None:
+def prepare_toml(config_path: Path = Path(""), canvas_token: str = "", canvas_course_id: int = 0, canvas_assignment_name_predicate: str = "", canvas_assignment_phrase_blacklist = [""], mucs_instance_code: str = "", sqlite3_path: str = "") -> None:
     """
     Generates a configuration toml for future use. 
     Accepts optional values to form a partial configuration default. 
@@ -54,16 +84,20 @@ def prepare_toml(config_path: Path = Path(""), canvas_token: str = "", canvas_co
     :param canvas_assignment_name_predicate: the pattern to match in Canvas assignments
     :param canvas_assignment_phrase_blacklist: phrases which should not appear in MUCSv2 assignments from Canvas
     :param mucs_instance_code: The code of the MUCSv2 instance you're using
+    :param sqlite3_path: The path to the SQL db store
     """
     
     if canvas_token != "":
-        logger.info("$prepare_toml: Creating gen_lab_window_config.toml with pre-provided defaults")
+        logger.debug("$prepare_toml: Creating gen_lab_window_config.toml with pre-provided defaults")
     else:
-        logger.info("$prepare_toml: Creating gen_lab_window_config.toml with empty defaults")
+        logger.debug("$prepare_toml: Creating gen_lab_window_config.toml with empty defaults")
     doc = document()
     general = table()
     general.add("mucs_instance_code", mucs_instance_code)
     doc['general'] = general
+    paths = table()
+    paths.add("sqlite3_path",sqlite3_path)
+    doc['paths'] = paths
     canvas = table()
     canvas.add(comment("The Canvas LMS Token identifying your user session."))
     canvas.add("canvas_token", canvas_token)
@@ -78,7 +112,7 @@ def prepare_toml(config_path: Path = Path(""), canvas_token: str = "", canvas_co
 
     with open(config_path / "gen_assignment_window.toml", 'w') as f:
         f.write(dumps(doc))
-    logger.info("$prepare_toml: Created toml config")
+    logger.debug("$prepare_toml: Created toml config")
 
 def load_config() -> Config:
     """
@@ -91,17 +125,18 @@ def load_config() -> Config:
     # Extract values from the TOML document
     general = doc.get('general', {})
     canvas = doc.get('canvas', {})
+    paths = doc.get('paths', {})
     return Config(
     token=canvas.get("canvas_token"), 
     course_id=canvas.get("canvas_course_id"), 
     assignment_name_scheme=canvas.get("canvas_assignment_name_predicate"), 
-    generated_output_file_name=general.get("generated_output_file_name"),
     blacklist=canvas.get('canvas_assignment_phrase_blacklist'),
-    mucs_course_code=general.get("mucs_course_code")
+    mucs_instance_code=general.get("mucs_instance_code"),
+    sqlite3_path=paths.get("sqlite3_path")
     )
 
 
-def prepare_assignment_window_and_config(config_path: Path = Path(""), canvas_token: int = 0, canvas_course_id: int | list = 0, canvas_assignment_name_predicate: str = "", canvas_assignment_phrase_blacklist: list = [""], mucs_instance_code: str = ""):
+def prepare_assignment_window_and_config(config_path: Path = Path(""), canvas_token: int = 0, canvas_course_id: int | list = 0, canvas_assignment_name_predicate: str = "", canvas_assignment_phrase_blacklist: list = [""], mucs_instance_code: str = "", sqlite3_path: str = ""):
     """
     Prepares the assignments of an MUCSv2 instance.
     Prepares the default configuration file for future standalone runs.
@@ -112,11 +147,12 @@ def prepare_assignment_window_and_config(config_path: Path = Path(""), canvas_to
     :param canvas_assignment_name_predicate: the pattern to match in Canvas assignments
     :param canvas_assignment_phrase_blacklist: phrases which should not appear in MUCSv2 assignments from Canvas
     :param mucs_instance_code: The code of the MUCSv2 instance you're using
+    :param sqlite3_path: The path to the SQL db store
     """
     ids = canvas_course_id if isinstance(canvas_course_id, list) else [canvas_course_id]
-    prepare_toml(config_path = config_path, canvas_token = canvas_token, canvas_course_id = ids[0], canvas_assignment_name_predicate = canvas_assignment_name_predicate, canvas_assignment_phrase_blacklist = canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code)
+    prepare_toml(config_path = config_path, canvas_token = canvas_token, canvas_course_id = ids[0], canvas_assignment_name_predicate = canvas_assignment_name_predicate, canvas_assignment_phrase_blacklist = canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code, sqlite3_path=sqlite3_path)
     logger.info("Created default TOML configuration for gen_assignment_window")
-    config = Config(token=canvas_token, course_id=canvas_course_id, assignment_name_scheme=canvas_assignment_name_predicate, blacklist=canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code)
+    config = Config(token=canvas_token, course_id=canvas_course_id, assignment_name_scheme=canvas_assignment_name_predicate, blacklist=canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code, sqlite3_path=sqlite3_path)
     for course_id in ids:
         filter_out_assignments(course_id)
 
@@ -128,9 +164,12 @@ def main():
         exit()
     logger.info("*** This isn't perfect - you should double check the results to make sure you're happy with them. ***")
     config: Config = load_config()
-    filter_out_assignments()
+    initialize_canvas_client(url_base="https://umsystem.instructure.com/api/v1/", token=config.token)
+    initialize_database(sqlite_db_path=config.sqlite3_path, class_code=config.mucs_instance_code)
+    filter_out_assignments(course_id=config.course_id, assignment_name_scheme=config.assignment_name_scheme, blacklist=config.blacklist)
 
 if __name__ == "__main__":
+    setup_logging()
     main()
 
 

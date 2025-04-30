@@ -12,6 +12,8 @@ certifi==2025.4.26
     # via requests
 charset-normalizer==3.4.1
     # via requests
+colorlog==6.9.0
+    # via -r requirements.in
 idna==3.10
     # via requests
 mucs-database @ git+https://github.com/Mizzou-CS-Core/MUCSDao.git

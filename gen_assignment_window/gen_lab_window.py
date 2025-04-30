@@ -136,7 +136,7 @@ def load_config() -> Config:
     )
 
 
-def prepare_assignment_window_and_config(config_path: Path = Path(""), canvas_token: int = 0, canvas_course_id: int | list = 0, canvas_assignment_name_predicate: str = "", canvas_assignment_phrase_blacklist: list = [""], mucs_instance_code: str = "", sqlite3_path: str = ""):
+def prepare_assignment_window_and_config(config_path: Path = Path(""), canvas_token: str = "", canvas_course_id: int | list = 0, canvas_assignment_name_predicate: str = "", canvas_assignment_phrase_blacklist: list = [""], mucs_instance_code: str = "", sqlite3_path: str = ""):
     """
     Prepares the assignments of an MUCSv2 instance.
     Prepares the default configuration file for future standalone runs.
@@ -150,7 +150,7 @@ def prepare_assignment_window_and_config(config_path: Path = Path(""), canvas_to
     :param sqlite3_path: The path to the SQL db store
     """
     ids = canvas_course_id if isinstance(canvas_course_id, list) else [canvas_course_id]
-    prepare_toml(config_path = config_path, canvas_token = canvas_token, canvas_course_id = ids[0], canvas_assignment_name_predicate = canvas_assignment_name_predicate, canvas_assignment_phrase_blacklist = canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code, sqlite3_path=sqlite3_path)
+    prepare_toml(config_path = config_path, canvas_token = canvas_token, canvas_course_id = ids[0], canvas_assignment_name_predicate = canvas_assignment_name_predicate, canvas_assignment_phrase_blacklist = canvas_assignment_phrase_blacklist, mucs_instance_code=mucs_instance_code, sqlite3_path=sqlite3_path)
     logger.info("Created default TOML configuration for gen_assignment_window")
     config = Config(token=canvas_token, course_id=canvas_course_id, assignment_name_scheme=canvas_assignment_name_predicate, blacklist=canvas_assignment_phrase_blacklist, mucs_course_code=mucs_course_code, sqlite3_path=sqlite3_path)
     for course_id in ids:

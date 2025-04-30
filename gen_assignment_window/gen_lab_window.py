@@ -12,7 +12,8 @@ from tomlkit import document, table, comment, dumps
 
 from canvas_lms_api import CanvasClient, Assignment
 
-logger = logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class Config:

@@ -3,6 +3,8 @@ import re
 import tomlkit
 import sqlite3
 import logging
+from pathlib import Path
+
 
 from datetime import datetime
 from csv import DictWriter

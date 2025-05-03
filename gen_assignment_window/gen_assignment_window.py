@@ -1,14 +1,9 @@
 import logging
-import os
 import re
 from pathlib import Path
 
 import mucs_database.store_objects as dao
-import tomlkit
 from canvas_lms_api import get_client
-from canvas_lms_api import init as initialize_canvas_client
-from colorlog import ColoredFormatter
-from mucs_database.init import initialize_database
 from tomlkit import document, table, comment, dumps
 
 logger = logging.getLogger(__name__)
@@ -24,26 +19,6 @@ class Config:
         self.blacklist = blacklist
         self.mucs_instance_code = mucs_instance_code
         self.sqlite3_path = Path(sqlite3_path) / f"{mucs_instance_code}.db"
-
-
-def setup_logging():
-    handler = logging.StreamHandler()
-    # this format string lets colorlog insert color around the whole line
-    fmt = "%(log_color)s%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    colors = {
-        'DEBUG': 'cyan',
-        'INFO': 'green',
-        'WARNING': 'yellow',
-        'ERROR': 'red',
-        'CRITICAL': 'bold_red',
-    }
-    handler.setFormatter(ColoredFormatter(fmt, log_colors=colors))
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
-    root.addHandler(handler)
-
-
-logger = logging.getLogger(__name__)
 
 
 def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklist: list):
@@ -117,28 +92,6 @@ def prepare_toml(config_path: Path = Path(""), canvas_token: str = "", canvas_co
     logger.debug("$prepare_toml: Created toml config")
 
 
-def load_config() -> Config:
-    """
-    Loads the data from a config file into memory.
-    """
-    with open("gen_assignment_window.toml", 'r') as f:
-        content = f.read()
-    doc = tomlkit.parse(content)
-
-    # Extract values from the TOML document
-    general = doc.get('general', {})
-    canvas = doc.get('canvas', {})
-    paths = doc.get('paths', {})
-    return Config(
-        token=canvas.get("canvas_token"),
-        course_id=canvas.get("canvas_course_id"),
-        assignment_name_scheme=canvas.get("canvas_assignment_name_predicate"),
-        blacklist=canvas.get('canvas_assignment_phrase_blacklist'),
-        mucs_instance_code=general.get("mucs_instance_code"),
-        sqlite3_path=paths.get("sqlite3_path")
-    )
-
-
 def prepare_assignment_window(canvas_course_id: int = 0, canvas_assignment_name_predicate: str = "",
                               canvas_assignment_phrase_blacklist=None):
     """
@@ -152,21 +105,3 @@ def prepare_assignment_window(canvas_course_id: int = 0, canvas_assignment_name_
         canvas_assignment_phrase_blacklist = [""]
     filter_out_assignments(course_id=canvas_course_id, blacklist=canvas_assignment_phrase_blacklist,
                            assignment_name_scheme=canvas_assignment_name_predicate)
-
-
-def main():
-    if not os.path.exists("gen_assignment_window.toml"):
-        prepare_toml()
-        logger.error(f"gen_assignment_window.toml was just created!")
-        logger.error(f"To continue with program execution, please edit this file with your preferred values.")
-        exit()
-    config: Config = load_config()
-    initialize_canvas_client(url_base="https://umsystem.instructure.com/api/v1/", token=config.token)
-    initialize_database(sqlite_db_path=str(config.sqlite3_path), mucsv2_instance_code=config.mucs_instance_code)
-    filter_out_assignments(course_id=config.course_id, assignment_name_scheme=config.assignment_name_scheme,
-                           blacklist=config.blacklist)
-
-
-if __name__ == "__main__":
-    setup_logging()
-    main()

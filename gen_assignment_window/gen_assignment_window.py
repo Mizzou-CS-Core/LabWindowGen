@@ -18,7 +18,7 @@ class Config:
         self.assignment_name_scheme = assignment_name_scheme
         self.blacklist = blacklist
         self.mucs_instance_code = mucs_instance_code
-        self.sqlite3_path = Path(sqlite3_path) / f"{mucs_instance_code}.db"
+        self.sqlite3_path = Path(sqlite3_path)
 
 
 def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklist: list):
@@ -45,6 +45,7 @@ def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklis
         logger.debug(f"${filter_out_assignments.__name__}: Internal assignment name {assignment.name} assigned")
         result = dao_assignments.store_assignment(name=assignment.name, canvas_id=assignment.id,
                                                   open_at=assignment.unlock_at, due_at=assignment.due_at)
+        logger.info(f"Added {result} to DB")
         if result is None:
             logger.error(f"Failed to add {assignment.name} to DB")
 

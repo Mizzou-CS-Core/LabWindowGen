@@ -29,22 +29,23 @@ def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklis
     :param assignment_name_scheme: the pattern to match in Canvas assignments
     :param blacklist: phrases which should not appear in MUCSv2 assignments from Canvas
     """
-    logger.debug("$get_assignment_internals: Retrieving assignments from Canvas LMS")
+    logger.debug(f"${filter_out_assignments.__name__}: Retrieving assignments from Canvas LMS")
     try:
         assignments = get_client().assignments.get_assignments_from_course(course_id, per_page=100)
     except Exception as e:
-        logger.error(f"$get_assignment_internals: Failed to get assignments: {e}")
+        logger.error(f"${filter_out_assignments.__name__}: Failed to get assignments: {e}")
         return
-    logger.debug(f"$get_assignment_internals: Assignment count from Canvas LMS: {len(assignments)}")
+    logger.debug(f"${filter_out_assignments.__name__}: Assignment count from Canvas LMS: {len(assignments)}")
     assignments = [a for a in assignments if
                    assignment_name_scheme in a.name and not any(phrase in a.name for phrase in blacklist)]
     for assignment in assignments:
         # remove stray characters
         # TODO: maybe provide a regex config option? 
         assignment.name = re.sub(r'[ ()]', '', assignment.name).lower()
-        logger.debug(f"$get_assignment_internals: Internal assignment name {assignment.name} assigned")
+        logger.debug(f"${filter_out_assignments.__name__}: Internal assignment name {assignment.name} assigned")
         dao.store_assignment(assignment=assignment)
-    logger.info("*** This isn't perfect - you should double check the results to make sure you're happy with them. ***")
+    logger.info(f"${filter_out_assignments.__name__}*** This isn't perfect - you should double check the results to "
+                f"make sure you're happy with them. ***")
 
 
 # Accepts values to prepare a "partial" configuration if necessary
@@ -65,9 +66,9 @@ def prepare_toml(config_path: Path = Path(""), canvas_token: str = "", canvas_co
     if canvas_assignment_phrase_blacklist is None:
         canvas_assignment_phrase_blacklist = [""]
     if canvas_token != "":
-        logger.debug("$prepare_toml: Creating gen_lab_window_config.toml with pre-provided defaults")
+        logger.debug(f"${prepare_toml.__name__}: Creating gen_lab_window_config.toml with pre-provided defaults")
     else:
-        logger.debug("$prepare_toml: Creating gen_lab_window_config.toml with empty defaults")
+        logger.debug(f"${prepare_toml.__name__}: Creating gen_lab_window_config.toml with empty defaults")
     doc = document()
     general = table()
     general.add("mucs_instance_code", mucs_instance_code)
@@ -89,7 +90,7 @@ def prepare_toml(config_path: Path = Path(""), canvas_token: str = "", canvas_co
 
     with open(config_path / "gen_assignment_window.toml", 'w') as f:
         f.write(dumps(doc))
-    logger.debug("$prepare_toml: Created toml config")
+    logger.debug(f"${prepare_toml.__name__}: Created toml config")
 
 
 def prepare_assignment_window(canvas_course_id: int = 0, canvas_assignment_name_predicate: str = "",
@@ -102,6 +103,7 @@ def prepare_assignment_window(canvas_course_id: int = 0, canvas_assignment_name_
     :param canvas_assignment_phrase_blacklist: phrases which should not appear in MUCSv2 assignments from Canvas
     """
     if canvas_assignment_phrase_blacklist is None:
+        logger.debug(f"${prepare_assignment_window.__name__}: Blacklist was empty. using empty default")
         canvas_assignment_phrase_blacklist = [""]
     filter_out_assignments(course_id=canvas_course_id, blacklist=canvas_assignment_phrase_blacklist,
                            assignment_name_scheme=canvas_assignment_name_predicate)

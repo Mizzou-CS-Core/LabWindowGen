@@ -2,7 +2,7 @@ import logging
 import re
 from pathlib import Path
 
-import mucs_database.store_objects as dao
+import mucs_database.assignment.accessors as dao_assignments
 from canvas_lms_api import get_client
 from tomlkit import document, table, comment, dumps
 
@@ -43,9 +43,10 @@ def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklis
         # TODO: maybe provide a regex config option? 
         assignment.name = re.sub(r'[ ()]', '', assignment.name).lower()
         logger.debug(f"${filter_out_assignments.__name__}: Internal assignment name {assignment.name} assigned")
-        dao.store_assignment(assignment=assignment)
-    logger.info(f"${filter_out_assignments.__name__}*** This isn't perfect - you should double check the results to "
-                f"make sure you're happy with them. ***")
+        result = dao_assignments.store_assignment(name=assignment.name, canvas_id=assignment.id,
+                                                  open_at=assignment.unlock_at, due_at=assignment.due_at)
+        if result is None:
+            logger.error(f"Failed to add {assignment.name} to DB")
 
 
 # Accepts values to prepare a "partial" configuration if necessary

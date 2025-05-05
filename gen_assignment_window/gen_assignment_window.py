@@ -42,6 +42,15 @@ def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklis
     assignments = [a for a in assignments if
                    assignment_name_scheme in a.name and not any(phrase in a.name for phrase in blacklist)]
     for assignment in assignments:
+        original_name = assignment.name
+        # remove stray characters
+        # TODO: maybe provide a regex config option? 
+        assignment.name = re.sub(r'[ ()]', '', assignment.name).lower()
+        logger.debug(f"${filter_out_assignments.__name__}: Internal assignment name {assignment.name} assigned")
+
+        if not dao_assignments.get_assignment_by_name(assignment.name) is None:
+            logger.warning(f"Internal assignment {assignment.name} already exists, skipping!")
+            continue
         if global_type is None:
             control = False
             while (not control):
@@ -64,11 +73,7 @@ def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklis
         else:
             file_count = global_count
 
-        original_name = assignment.name
-        # remove stray characters
-        # TODO: maybe provide a regex config option? 
-        assignment.name = re.sub(r'[ ()]', '', assignment.name).lower()
-        logger.debug(f"${filter_out_assignments.__name__}: Internal assignment name {assignment.name} assigned")
+        
         result = dao_assignments.store_assignment(name=assignment.name, canvas_id=assignment.id,
                                                   open_at=assignment.unlock_at, due_at=assignment.due_at, 
                                                   original_name=original_name, assignment_type=assignment_type, file_count=file_count)

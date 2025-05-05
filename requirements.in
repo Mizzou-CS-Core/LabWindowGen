@@ -2,3 +2,4 @@ git+https://github.com/Mizzou-CS-Core/CanvasRequestLibrary.git#egg=canvas_lms_ap
 git+https://github.com/Mizzou-CS-Core/MUCSDao.git#egg=mucs_database
 tomlkit
 colorlog
+colorama

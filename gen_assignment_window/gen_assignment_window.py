@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 
 import mucs_database.assignment.accessors as dao_assignments
+from colorama import Fore, Style
 from canvas_lms_api import get_client
 from tomlkit import document, table, comment, dumps
 
@@ -29,6 +30,8 @@ def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklis
     :param assignment_name_scheme: the pattern to match in Canvas assignments
     :param blacklist: phrases which should not appear in MUCSv2 assignments from Canvas
     """
+    global_type = None
+    global_count = None
     logger.debug(f"${filter_out_assignments.__name__}: Retrieving assignments from Canvas LMS")
     try:
         assignments = get_client().assignments.get_assignments_from_course(course_id, per_page=100)
@@ -39,12 +42,36 @@ def filter_out_assignments(course_id: int, assignment_name_scheme: str, blacklis
     assignments = [a for a in assignments if
                    assignment_name_scheme in a.name and not any(phrase in a.name for phrase in blacklist)]
     for assignment in assignments:
+        if global_type is None:
+            control = False
+            while (not control):
+                assignment_type = input(f"{Fore.BLUE}What kind of assignment is this? Valid options: c, cpp, none \nYou can put * at the end to mark all assignments as the same type.\n> {Style.RESET_ALL}")
+                if "c" in assignment_type or "cpp" in assignment_type or "none" in assignment_type:
+                    control = True
+            if "*" in assignment_type:
+                assignment_type = assignment_type.translate({ord(i):None for i in '*'})
+                global_type = assignment_type
+                print(f"{Fore.BLUE}All assignments will now be {assignment_type} type.{Style.RESET_ALL}")
+        else:
+            assignment_type = global_type
+        control = False
+        if global_count is None:
+            file_count = input(f"{Fore.BLUE}How many files should be expected with the submission? \nYou can put * at the end to mark all assignments as the same type.\n> {Style.RESET_ALL}")
+            if "*" in file_count:
+                file_count = file_count.translate({ord(i):None for i in '*'})
+                global_count = file_count
+                print(f"{Fore.BLUE}All assignments will now need {file_count} files.{Style.RESET_ALL}")
+        else:
+            file_count = global_count
+
+        original_name = assignment.name
         # remove stray characters
         # TODO: maybe provide a regex config option? 
         assignment.name = re.sub(r'[ ()]', '', assignment.name).lower()
         logger.debug(f"${filter_out_assignments.__name__}: Internal assignment name {assignment.name} assigned")
         result = dao_assignments.store_assignment(name=assignment.name, canvas_id=assignment.id,
-                                                  open_at=assignment.unlock_at, due_at=assignment.due_at)
+                                                  open_at=assignment.unlock_at, due_at=assignment.due_at, 
+                                                  original_name=original_name, assignment_type=assignment_type, file_count=file_count)
         logger.info(f"Added {result} to DB")
         if result is None:
             logger.error(f"Failed to add {assignment.name} to DB")

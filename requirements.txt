@@ -5,19 +5,21 @@
 #    pip-compile requirements.in
 #
 canvas-lms-api @ git+https://github.com/Mizzou-CS-Core/CanvasRequestLibrary.git
-    # via
-    #   -r requirements.in
-    #   mucs-database
+    # via -r requirements.in
 certifi==2025.4.26
     # via requests
 charset-normalizer==3.4.1
     # via requests
+colorama==0.4.6
+    # via -r requirements.in
 colorlog==6.9.0
     # via -r requirements.in
 idna==3.10
     # via requests
 mucs-database @ git+https://github.com/Mizzou-CS-Core/MUCSDao.git
     # via -r requirements.in
+peewee==3.18.1
+    # via mucs-database
 requests==2.32.3
     # via canvas-lms-api
 tomlkit==0.13.2
